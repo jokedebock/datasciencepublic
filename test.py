@@ -36,6 +36,7 @@ df['Neighborhood'] = df.apply(lambda x : fx(x),axis=1)
 print("EXERCISE PART 1:")
 print(df.head())
 print(df.shape)
+print(" ")
 
 # EXERCISE PART 2: Adding latitude & longitude to the dataframe
 # -------------------------------------------------------------
@@ -72,10 +73,12 @@ df = df.dropna(subset=['Latitude'])
 print("EXERCISE PART 2:")
 print(df.head())
 print(df.shape)
+print(" ")
 
 # EXERCISE PART 3: Exploring & clustering the neighborhoods of Toronto
 # --------------------------------------------------------------------
 
+print("EXERCISE PART 3:")
 # Create a boolean mask to filter rows where Borough contains "Toronto" and create new dataframe based on mask
 boroughtoronto = df['Borough'].str.contains("Toronto")
 neighborhoods = df[boroughtoronto]
