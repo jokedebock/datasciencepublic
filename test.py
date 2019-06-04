@@ -208,3 +208,34 @@ toronto_onehot['Neighborhood'] = toronto_venues['Neighborhood'] # Add neighborho
 fixed_columns = [toronto_onehot.columns[-1]] + list(toronto_onehot.columns[:-1]) # move neighborhood column to the first column
 toronto_onehot = toronto_onehot[fixed_columns]
 
+# Group by Neighborhood
+toronto_grouped = toronto_onehot.groupby('Neighborhood').mean().reset_index()
+
+# Function to sort venues in descending order
+def return_most_common_venues(row, num_top_venues):
+    row_categories = row.iloc[1:]
+    row_categories_sorted = row_categories.sort_values(ascending=False)
+
+    return row_categories_sorted.index.values[0:num_top_venues]
+
+# Create new dataframe and display the top 10 venues for each neighborhood
+num_top_venues = 10
+
+indicators = ['st', 'nd', 'rd']
+
+# create columns according to number of top venues
+columns = ['Neighborhood']
+for ind in np.arange(num_top_venues):
+    try:
+        columns.append('{}{} Most Common Venue'.format(ind+1, indicators[ind]))
+    except:
+        columns.append('{}th Most Common Venue'.format(ind+1))
+
+# create a new dataframe
+neighborhoods_venues_sorted = pd.DataFrame(columns=columns)
+neighborhoods_venues_sorted['Neighborhood'] = toronto_grouped['Neighborhood']
+
+for ind in np.arange(toronto_grouped.shape[0]):
+    neighborhoods_venues_sorted.iloc[ind, 1:] = return_most_common_venues(toronto_grouped.iloc[ind, :], num_top_venues)
+
+print(neighborhoods_venues_sorted.head())
