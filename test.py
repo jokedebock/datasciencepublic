@@ -1,6 +1,8 @@
 import pandas as pd
 import numpy as np
 from pypostalcode import PostalCodeDatabase
+import folium # map rendering library
+from geopy.geocoders import Nominatim # convert an address into latitude and longitude values
 
 d = pd.read_html("https://en.wikipedia.org/wiki/List_of_postal_codes_of_Canada:_M")
 
@@ -50,5 +52,36 @@ df = df.replace('Not found', np.nan)
 
 df = df.dropna(subset=['Latitude'])
 
-print(df)
+#print(df['Borough'])
 
+#boolean mask
+boroughtoronto = df['Borough'].str.contains("Toronto")
+neighborhoods = df[boroughtoronto]
+#print(df[boroughtoronto])
+
+address = 'Toronto'
+geolocator = Nominatim(user_agent="toronto_explorer")
+location = geolocator.geocode(address)
+latitude = location.latitude
+longitude = location.longitude
+print('The geograpical coordinate of Toronto are {}, {}.'.format(latitude, longitude))
+
+# create map of New York using latitude and longitude values
+map_toronto = folium.Map(location=[latitude, longitude], zoom_start=10)
+
+# add markers to map
+for lat, lng, borough, neighborhood in zip(neighborhoods['Latitude'], neighborhoods['Longitude'],
+                                           neighborhoods['Borough'], neighborhoods['Neighborhood']):
+    label = '{}, {}'.format(neighborhood, borough)
+    label = folium.Popup(label, parse_html=True)
+    folium.CircleMarker(
+        [lat, lng],
+        radius=5,
+        popup=label,
+        color='blue',
+        fill=True,
+        fill_color='#3186cc',
+        fill_opacity=0.7,
+        parse_html=False).add_to(map_toronto)
+
+map_toronto
