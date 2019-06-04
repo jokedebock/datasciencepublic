@@ -3,29 +3,41 @@ import numpy as np
 from pypostalcode import PostalCodeDatabase
 import folium # map rendering library
 from geopy.geocoders import Nominatim # convert an address into latitude and longitude values
+import requests # library to handle requests
+from pandas.io.json import json_normalize # tranform JSON file into a pandas dataframe
+
+
+# EXERCISE PART 1: Creating the dataframe and transforming the data
+# -----------------------------------------------------------------
 
 d = pd.read_html("https://en.wikipedia.org/wiki/List_of_postal_codes_of_Canada:_M")
 
 df = d[0]
 df.columns = ['PostalCode', 'Borough', 'Neighborhood']
 
+# Drop rows where Borough is "Not assgined"
 df = df.replace('Not assigned', np.nan)
-
 df = df.dropna(subset=['Borough'])
 
+# Group by PostalCode
 df = df.groupby('PostalCode', as_index=False).agg(lambda x: ', '.join(set(x.dropna())))
 
+# Where the neighborhood is emtpy, use borough instead
 def fx(x):
     if (x['Neighborhood']):
         return x['Neighborhood']
     else:
         return x['Borough']
-
 df['Neighborhood'] = df.apply(lambda x : fx(x),axis=1)
 
-#print(df)
+print("EXERCISE PART 1:")
+print(df.head())
+print(df.shape)
 
+# EXERCISE PART 2: Adding latitude & longitude to the dataframe
+# -------------------------------------------------------------
 
+# Function to search for latitude based on postal code
 def searchlatitude(x):
     #print(x)
     pcdb = PostalCodeDatabase()
@@ -36,6 +48,7 @@ def searchlatitude(x):
     except:
         return "Not found"
 
+# Function to search for longitude based on postal code
 def searchlongitude(x):
     #print(x)
     pcdb = PostalCodeDatabase()
@@ -45,31 +58,37 @@ def searchlongitude(x):
     except:
         return "Not found"
 
+# Add columns Latitude and Longitude
 df['Latitude'] = df.apply(lambda row: searchlatitude(row.PostalCode), axis = 1)
 df['Longitude'] = df.apply(lambda row: searchlongitude(row.PostalCode), axis = 1)
 
+# Drop the rows for which the postal code was not found
 df = df.replace('Not found', np.nan)
-
 df = df.dropna(subset=['Latitude'])
 
-#print(df['Borough'])
+print("EXERCISE PART 2:")
+print(df.head())
+print(df.shape)
 
-#boolean mask
+# EXERCISE PART 3: Exploring & clustering the neighborhoods of Toronto
+# --------------------------------------------------------------------
+
+# Create a boolean mask to filter rows where Borough contains "Toronto" and create new dataframe based on mask
 boroughtoronto = df['Borough'].str.contains("Toronto")
 neighborhoods = df[boroughtoronto]
-#print(df[boroughtoronto])
 
+# Get location of Toronto
 address = 'Toronto'
 geolocator = Nominatim(user_agent="toronto_explorer")
 location = geolocator.geocode(address)
 latitude = location.latitude
 longitude = location.longitude
-print('The geograpical coordinate of Toronto are {}, {}.'.format(latitude, longitude))
+#print('The geograpical coordinate of Toronto are {}, {}.'.format(latitude, longitude))
 
-# create map of New York using latitude and longitude values
+# Create map of New York using latitude and longitude values
 map_toronto = folium.Map(location=[latitude, longitude], zoom_start=10)
 
-# add markers to map
+# Add markers to map
 for lat, lng, borough, neighborhood in zip(neighborhoods['Latitude'], neighborhoods['Longitude'],
                                            neighborhoods['Borough'], neighborhoods['Neighborhood']):
     label = '{}, {}'.format(neighborhood, borough)
@@ -84,4 +103,108 @@ for lat, lng, borough, neighborhood in zip(neighborhoods['Latitude'], neighborho
         fill_opacity=0.7,
         parse_html=False).add_to(map_toronto)
 
+# Show map (in Jupyter Notebook)
 map_toronto
+
+# Foursquare credentials
+CLIENT_ID = 'JZNEUC4UMXDUSRH140GO1MW1BXMSJXC14DLPZYWVDR5UJ5P1' # Foursquare ID
+CLIENT_SECRET = 'QDNPZM1Q0KPYYQTP21HWJSHXPRGOG4412PDTDYFYXNEJ3BTR' # Foursquare Secret
+VERSION = '20180605' # Foursquare API version
+
+# Get latitude and longitude for first neighborhood
+neighborhood_latitude = neighborhoods['Latitude'].iloc[0]
+neighborhood_longitude = neighborhoods['Longitude'].iloc[0]
+neighborhood_name = neighborhoods['Neighborhood'].iloc[0]
+
+print('Latitude and longitude values of {} are {}, {}.'.format(neighborhood_name,
+                                                               neighborhood_latitude,
+                                                               neighborhood_longitude))
+
+# Call the Foursquare API
+LIMIT = 100 # limit of number of venues returned by Foursquare API
+radius = 500 # define radius
+
+url = 'https://api.foursquare.com/v2/venues/explore?&client_id={}&client_secret={}&v={}&ll={},{}&radius={}&limit={}'.format(
+    CLIENT_ID,
+    CLIENT_SECRET,
+    VERSION,
+    neighborhood_latitude,
+    neighborhood_longitude,
+    radius,
+    LIMIT)
+results = requests.get(url).json()
+
+
+# Function that extracts the category of the venue
+def get_category_type(row):
+    try:
+        categories_list = row['categories']
+    except:
+        categories_list = row['venue.categories']
+
+    if len(categories_list) == 0:
+        return None
+    else:
+        return categories_list[0]['name']
+
+
+# Clean the json and structure it into a pandas dataframe
+venues = results['response']['groups'][0]['items']
+nearby_venues = json_normalize(venues)  # flatten JSON
+filtered_columns = ['venue.name', 'venue.categories', 'venue.location.lat', 'venue.location.lng'] # filter columns
+nearby_venues = nearby_venues.loc[:, filtered_columns]
+nearby_venues['venue.categories'] = nearby_venues.apply(get_category_type, axis=1) # filter the category for each row
+nearby_venues.columns = [col.split(".")[-1] for col in nearby_venues.columns] # clean columns
+print(nearby_venues.head())
+print('{} venues were returned by Foursquare.'.format(nearby_venues.shape[0]))
+
+# Function to repeat the same process to all the neighborhoods
+def getNearbyVenues(names, latitudes, longitudes, radius=500):
+    venues_list = []
+    for name, lat, lng in zip(names, latitudes, longitudes):
+        # create the API request URL
+        url = 'https://api.foursquare.com/v2/venues/explore?&client_id={}&client_secret={}&v={}&ll={},{}&radius={}&limit={}'.format(
+            CLIENT_ID,
+            CLIENT_SECRET,
+            VERSION,
+            lat,
+            lng,
+            radius,
+            LIMIT)
+
+        # make the GET request
+        results = requests.get(url).json()["response"]['groups'][0]['items']
+
+        # return only relevant information for each nearby venue
+        venues_list.append([(
+            name,
+            lat,
+            lng,
+            v['venue']['name'],
+            v['venue']['location']['lat'],
+            v['venue']['location']['lng'],
+            v['venue']['categories'][0]['name']) for v in results])
+
+    nearby_venues = pd.DataFrame([item for venue_list in venues_list for item in venue_list])
+    nearby_venues.columns = ['Neighborhood',
+                             'Neighborhood Latitude',
+                             'Neighborhood Longitude',
+                             'Venue',
+                             'Venue Latitude',
+                             'Venue Longitude',
+                             'Venue Category']
+
+    return (nearby_venues)
+
+# Apply the function to the neighborhoods of Toronto
+toronto_venues = getNearbyVenues(names=neighborhoods['Neighborhood'],
+                                   latitudes=neighborhoods['Latitude'],
+                                   longitudes=neighborhoods['Longitude']
+                                  )
+
+# One hot encoding
+toronto_onehot = pd.get_dummies(toronto_venues[['Venue Category']], prefix="", prefix_sep="")
+toronto_onehot['Neighborhood'] = toronto_venues['Neighborhood'] # Add neighborhood column back to dataframe
+fixed_columns = [toronto_onehot.columns[-1]] + list(toronto_onehot.columns[:-1]) # move neighborhood column to the first column
+toronto_onehot = toronto_onehot[fixed_columns]
+
