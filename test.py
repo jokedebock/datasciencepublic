@@ -122,10 +122,6 @@ neighborhood_latitude = neighborhoods['Latitude'].iloc[0]
 neighborhood_longitude = neighborhoods['Longitude'].iloc[0]
 neighborhood_name = neighborhoods['Neighborhood'].iloc[0]
 
-print('Latitude and longitude values of {} are {}, {}.'.format(neighborhood_name,
-                                                               neighborhood_latitude,
-                                                               neighborhood_longitude))
-
 # Call the Foursquare API
 LIMIT = 100 # limit of number of venues returned by Foursquare API
 radius = 500 # define radius
