@@ -8,6 +8,8 @@ from pandas.io.json import json_normalize # tranform JSON file into a pandas dat
 from sklearn.cluster import KMeans # import k-means from clustering stage
 import matplotlib.cm as cm # Matplotlib and associated plotting modules
 import matplotlib.colors as colors
+import os
+import webbrowser
 
 
 # EXERCISE PART 1: Creating the dataframe and transforming the data
@@ -268,3 +270,8 @@ for lat, lon, poi, cluster in zip(toronto_merged['Latitude'], toronto_merged['Lo
         fill_opacity=0.7).add_to(map_clusters)
 
 map_clusters
+
+filepath = r'''C:\Users\rc01828\PycharmProjects\map.html'''
+map_clusters.save(filepath)
+webbrowser.open('file://' + filepath)
+iframe = map_clusters._repr_html_()
