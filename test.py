@@ -5,6 +5,9 @@ import folium # map rendering library
 from geopy.geocoders import Nominatim # convert an address into latitude and longitude values
 import requests # library to handle requests
 from pandas.io.json import json_normalize # tranform JSON file into a pandas dataframe
+from sklearn.cluster import KMeans # import k-means from clustering stage
+import matplotlib.cm as cm # Matplotlib and associated plotting modules
+import matplotlib.colors as colors
 
 
 # EXERCISE PART 1: Creating the dataframe and transforming the data
@@ -155,8 +158,8 @@ filtered_columns = ['venue.name', 'venue.categories', 'venue.location.lat', 'ven
 nearby_venues = nearby_venues.loc[:, filtered_columns]
 nearby_venues['venue.categories'] = nearby_venues.apply(get_category_type, axis=1) # filter the category for each row
 nearby_venues.columns = [col.split(".")[-1] for col in nearby_venues.columns] # clean columns
-print(nearby_venues.head())
-print('{} venues were returned by Foursquare.'.format(nearby_venues.shape[0]))
+#print(nearby_venues.head())
+#print('{} venues were returned by Foursquare.'.format(nearby_venues.shape[0]))
 
 # Function to repeat the same process to all the neighborhoods
 def getNearbyVenues(names, latitudes, longitudes, radius=500):
@@ -220,22 +223,49 @@ def return_most_common_venues(row, num_top_venues):
 
 # Create new dataframe and display the top 10 venues for each neighborhood
 num_top_venues = 10
-
 indicators = ['st', 'nd', 'rd']
-
-# create columns according to number of top venues
-columns = ['Neighborhood']
+columns = ['Neighborhood'] # Create columns according to number of top venues
 for ind in np.arange(num_top_venues):
     try:
         columns.append('{}{} Most Common Venue'.format(ind+1, indicators[ind]))
     except:
         columns.append('{}th Most Common Venue'.format(ind+1))
-
-# create a new dataframe
-neighborhoods_venues_sorted = pd.DataFrame(columns=columns)
+neighborhoods_venues_sorted = pd.DataFrame(columns=columns) # Create a new dataframe
 neighborhoods_venues_sorted['Neighborhood'] = toronto_grouped['Neighborhood']
-
 for ind in np.arange(toronto_grouped.shape[0]):
     neighborhoods_venues_sorted.iloc[ind, 1:] = return_most_common_venues(toronto_grouped.iloc[ind, :], num_top_venues)
 
-print(neighborhoods_venues_sorted.head())
+# k-means cluster
+kclusters = 5 # set number of clusters
+toronto_grouped_clustering = toronto_grouped.drop('Neighborhood', 1)
+kmeans = KMeans(n_clusters=kclusters, random_state=0).fit(toronto_grouped_clustering) # run k-means clustering
+kmeans.labels_[0:10]  # Check cluster labels generated for each row in the dataframe
+
+# Create a new dataframe that includes the cluster as well as the top 10 venues for each neighborhood
+neighborhoods_venues_sorted.insert(0, 'Cluster Labels', kmeans.labels_) # Add clustering labels
+toronto_merged = neighborhoods
+
+# Merge toronto_grouped with toronto_data to add latitude/longitude for each neighborhood
+toronto_merged = toronto_merged.join(neighborhoods_venues_sorted.set_index('Neighborhood'), on='Neighborhood')
+toronto_merged.head()
+
+# Visualise the resulting clusters
+map_clusters = folium.Map(location=[latitude, longitude], zoom_start=11) # create map
+x = np.arange(kclusters) # set color scheme for the clusters
+ys = [i + x + (i * x) ** 2 for i in range(kclusters)]
+colors_array = cm.rainbow(np.linspace(0, 1, len(ys)))
+rainbow = [colors.rgb2hex(i) for i in colors_array]
+markers_colors = [] # add markers to the map
+for lat, lon, poi, cluster in zip(toronto_merged['Latitude'], toronto_merged['Longitude'],
+                                  toronto_merged['Neighborhood'], toronto_merged['Cluster Labels']):
+    label = folium.Popup(str(poi) + ' Cluster ' + str(cluster), parse_html=True)
+    folium.CircleMarker(
+        [lat, lon],
+        radius=5,
+        popup=label,
+        color=rainbow[cluster - 1],
+        fill=True,
+        fill_color=rainbow[cluster - 1],
+        fill_opacity=0.7).add_to(map_clusters)
+
+map_clusters
