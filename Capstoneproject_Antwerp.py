@@ -56,33 +56,22 @@ def searchlongitude(x):
 # Add columns Latitude and Longitude
 df_antwerp['Latitude'] = df_antwerp.apply(lambda row: searchlatitude(row.PostalCode), axis = 1)
 df_antwerp['Longitude'] = df_antwerp.apply(lambda row: searchlongitude(row.PostalCode), axis = 1)
-print(df_antwerp)
+# print(df_antwerp)
 
-#
-# # Drop the rows for which the postal code was not found
-# df = df.replace('Not found', np.nan)
-# df = df.dropna(subset=['Latitude'])
-#
-# print("EXERCISE PART 2:")
-# print(df.head())
-# print(df.shape)
-# print(" ")
-#
-# # EXERCISE PART 3: Exploring & clustering the neighborhoods of Toronto
-# # --------------------------------------------------------------------
-#
-# print("EXERCISE PART 3:")
-# # Create a boolean mask to filter rows where Borough contains "Toronto" and create new dataframe based on mask
-# boroughtoronto = df['Borough'].str.contains("Toronto")
-# neighborhoods = df[boroughtoronto]
-#
-# # Get location of Toronto
-# address = 'Toronto'
-# geolocator = Nominatim(user_agent="toronto_explorer")
-# location = geolocator.geocode(address)
-# latitude = location.latitude
-# longitude = location.longitude
-# #print('The geograpical coordinate of Toronto are {}, {}.'.format(latitude, longitude))
+# Drop the rows for which the postal code was not found
+df_antwerp = df_antwerp.replace('Not found', np.nan)
+df_antwerp = df_antwerp.dropna(subset=['Latitude'])
+
+
+# EXERCISE PART 3: Exploring & clustering the neighborhoods of Toronto
+# --------------------------------------------------------------------
+# Get location of Antwerp
+address = 'Antwerp'
+geolocator = Nominatim(user_agent="antwerp_explorer")
+location = geolocator.geocode(address)
+latitude = location.latitude
+longitude = location.longitude
+print('The geograpical coordinate of Antwerp are {}, {}.'.format(latitude, longitude))
 #
 # # Create map of New York using latitude and longitude values
 # map_toronto = folium.Map(location=[latitude, longitude], zoom_start=10)
