@@ -1,5 +1,6 @@
 import pandas as pd
 import numpy as np
+import pgeocode
 from pypostalcode import PostalCodeDatabase
 import folium # map rendering library
 from geopy.geocoders import Nominatim # convert an address into latitude and longitude values
@@ -23,26 +24,19 @@ df.columns = ['SequenceNr', 'City', 'PostalCode','Country', 'Region', 'Province'
 df = df.replace('Not assigned', np.nan)
 df = df.dropna(subset=['SequenceNr'])
 df = df.drop(columns='SequenceNr')
-print(df.head())
+df = df.drop(columns='Country')
+df = df.drop(columns= 'Region')
 
-# # Group by PostalCode
-# df = df.groupby('PostalCode', as_index=False).agg(lambda x: ', '.join(set(x.dropna())))
-#
-# # Where the neighborhood is emtpy, use borough instead
-# def fx(x):
-#     if (x['Neighborhood']):
-#         return x['Neighborhood']
-#     else:
-#         return x['Borough']
-# df['Neighborhood'] = df.apply(lambda x : fx(x),axis=1)
-#
-# print("EXERCISE PART 1:")
-# print(df.head())
-# print(df.shape)
-# print(" ")
-#
-# # EXERCISE PART 2: Adding latitude & longitude to the dataframe
-# # -------------------------------------------------------------
+df_antwerp = df[df.MajorCity == "Antwerpen"]
+
+# EXERCISE PART 2: Adding latitude & longitude to the dataframe
+# -------------------------------------------------------------
+
+nomi = pgeocode.Nominatim('be')
+df_postalcodeinfo = nomi.query_postal_code("2018")
+df_postalcodeinfo.columns = ['Label', 'Value']
+
+print(df_postalcodeinfo)
 #
 # # Function to search for latitude based on postal code
 # def searchlatitude(x):
