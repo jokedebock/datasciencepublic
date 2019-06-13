@@ -33,35 +33,31 @@ df_antwerp = df[df.MajorCity == "Antwerpen"]
 # -------------------------------------------------------------
 
 nomi = pgeocode.Nominatim('be')
-df_postalcodeinfo = nomi.query_postal_code("2018")
-df_postalcodeinfo.columns = ['Label', 'Value']
 
-print(df_postalcodeinfo)
-#
-# # Function to search for latitude based on postal code
-# def searchlatitude(x):
-#     #print(x)
-#     pcdb = PostalCodeDatabase()
-#     try:
-#         location = pcdb[x]
-#         #print(x, ", ", location.latitude)
-#         return location.latitude
-#     except:
-#         return "Not found"
-#
-# # Function to search for longitude based on postal code
-# def searchlongitude(x):
-#     #print(x)
-#     pcdb = PostalCodeDatabase()
-#     try:
-#         location = pcdb[x]
-#         return location.longitude
-#     except:
-#         return "Not found"
-#
-# # Add columns Latitude and Longitude
-# df['Latitude'] = df.apply(lambda row: searchlatitude(row.PostalCode), axis = 1)
-# df['Longitude'] = df.apply(lambda row: searchlongitude(row.PostalCode), axis = 1)
+# Function to search for latitude based on postal code
+def searchlatitude(x):
+     try:
+         t_postalcodeinfo = nomi.query_postal_code(x)
+         latitude = t_postalcodeinfo[-3]
+         return latitude
+     except:
+         return "Not found"
+
+# Function to search for longitude based on postal code
+def searchlongitude(x):
+    try:
+        t_postalcodeinfo = nomi.query_postal_code(x)
+        longitude = t_postalcodeinfo[-2]
+        return longitude
+    except:
+        return "Not found"
+
+
+# Add columns Latitude and Longitude
+df_antwerp['Latitude'] = df_antwerp.apply(lambda row: searchlatitude(row.PostalCode), axis = 1)
+df_antwerp['Longitude'] = df_antwerp.apply(lambda row: searchlongitude(row.PostalCode), axis = 1)
+print(df_antwerp)
+
 #
 # # Drop the rows for which the postal code was not found
 # df = df.replace('Not found', np.nan)
